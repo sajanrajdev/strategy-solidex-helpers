@@ -17,14 +17,14 @@ import "../interfaces/solidly/IBaseV1Router01.sol";
 import {route} from "../interfaces/solidly/IBaseV1Router01.sol";
 import {BaseStrategy} from "../deps/BaseStrategy.sol";
 
-contract StrategySolidexSexWftmHelper is BaseStrategy {
+contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using AddressUpgradeable for address;
     using SafeMathUpgradeable for uint256;
 
     // address public want // Inherited from BaseStrategy, the token the strategy wants, swaps into and tries to grow
     address public badgerTree; // BadgerTree
-    ISettV4h public solidHelperVault; // SOLID/SOLIDsex LP Helper Vault
+    ISettV4h public sexHelperVault; // SEX/wFTM LP Helper Vault
 
     // Solidex
     ILpDepositor public constant lpDepositor =
@@ -53,6 +53,7 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
         IERC20Upgradeable(0xD31Fcd1f7Ba190dBc75354046F6024A9b86014d7);
     IERC20Upgradeable public constant sexWftmLpToken =
         IERC20Upgradeable(0xFCEC86aF8774d69e2e4412B8De3f4aBf1f671ecC);
+
 
     // Constants
     uint256 public constant MAX_BPS = 10000;
@@ -101,7 +102,7 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
         /// @dev Add config here
         want = _wantConfig[0];
         badgerTree = _wantConfig[1];
-        solidHelperVault = ISettV4h(_wantConfig[2]);
+        sexHelperVault = ISettV4h(_wantConfig[2]);
 
         performanceFeeGovernance = _feeConfig[0];
         performanceFeeStrategist = _feeConfig[1];
@@ -114,14 +115,14 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
         IERC20Upgradeable(want).safeApprove(address(lpDepositor), type(uint256).max);
         IERC20Upgradeable(solid).safeApprove(baseV1Router01, type(uint256).max);
         IERC20Upgradeable(solidSex).safeApprove(baseV1Router01, type(uint256).max);
-        IERC20Upgradeable(solidSolidSexLp).safeApprove(address(solidHelperVault), type(uint256).max);
+        IERC20Upgradeable(solidSolidSexLp).safeApprove(address(sexHelperVault), type(uint256).max);
     }
 
     /// ===== View Functions =====
 
     // @dev Specify the name of the strategy
     function getName() external pure override returns (string memory) {
-        return "StrategySolidexSexWftmHelper";
+        return "StrategySolidexSolidSolidsexHelper";
     }
 
     // @dev Specify the version of the Strategy, for upgrades
@@ -150,7 +151,7 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
         returns (address[] memory)
     {
         address[] memory protectedTokens = new address[](3);
-        protectedTokens[0] = want; // wFTM/SEX LP
+        protectedTokens[0] = want; // SOLID/SOLIDsex LP
         protectedTokens[1] = sex; // SEX
         protectedTokens[2] = solid; // SOLID
         return protectedTokens;
@@ -207,7 +208,130 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
         // 1. Claim rewards
         lpDepositor.getReward([want]);
 
-        // 2. Process SOLID into SOLID/SOLIDsex LP
+        // 2. Process SEX into SEX/wFTM LP
+        uint256 sexBalance = sexToken.balanceOf(address(this));
+        if (sexBalance > 0) {
+            // Swap half of SEX for wFTM
+            uint256 _half = sexBalance.mul(5000).div(MAX_BPS);
+            _swapExactTokensForTokens(
+                baseV1Router01,
+                _half,
+                route(sex, wftm, false) // False to use the volatile route
+            );
+
+            // Provide liquidity for SEX/WFTM LP pair
+            uint256 _sexIn = sexToken.balanceOf(address(this));
+            uint256 _wftmIn = wftmToken.balanceOf(address(this));
+            IBaseV1Router01(baseV1Router01).addLiquidity(
+                sex,
+                wftm,
+                _sexIn,
+                _wftmIn,
+                _sexIn.mul(sl).div(MAX_BPS),
+                _wftmIn.mul(sl).div(MAX_BPS),
+                address(this),
+                now
+            );
+        }
+
+        // 3. Deposit SEX/wFTM LP into Helper Vault, process fees and emit
+        uint256 lpBalance = sexWftmLpToken.balanceOf(address(this));
+        if (lpBalance > 0) {
+            // Take Governance Performance Fees is any
+            if (performanceFeeGovernance > 0) {
+                uint256 lpToGovernance =
+                    lpBalance.mul(performanceFeeGovernance).div(
+                        MAX_FEE
+                    );
+
+                uint256 govHelperVaultBefore =
+                    sexHelperVault.balanceOf(
+                        IController(controller).rewards()
+                    );
+
+                sexHelperVault.depositFor(
+                    IController(controller).rewards(),
+                    lpToGovernance
+                );
+
+                uint256 govHelperVaultAfter =
+                    sexHelperVault.balanceOf(
+                        IController(controller).rewards()
+                    );
+                uint256 govVaultPositionGained =
+                    govHelperVaultAfter.sub(govHelperVaultBefore);
+
+                emit PerformanceFeeGovernance(
+                    IController(controller).rewards(),
+                    address(sexHelperVault),
+                    govVaultPositionGained,
+                    block.number,
+                    block.timestamp
+                );
+            }
+            // Take Strategist Performance Fees is any
+            if (performanceFeeStrategist > 0) {
+                uint256 lpToStrategist =
+                    lpBalance.mul(performanceFeeStrategist).div(
+                        MAX_FEE
+                    );
+
+                uint256 stratHelperVaultBefore =
+                    sexHelperVault.balanceOf(
+                        strategist
+                    );
+
+                sexHelperVault.depositFor(
+                    strategist,
+                    lpToStrategist
+                );
+
+                uint256 stratHelperVaultAfter =
+                    sexHelperVault.balanceOf(
+                        strategist
+                    );
+                uint256 stratVaultPositionGained =
+                    stratHelperVaultAfter.sub(stratHelperVaultBefore);
+
+                emit PerformanceFeeStrategist(
+                    strategist,
+                    address(sexHelperVault),
+                    stratVaultPositionGained,
+                    block.number,
+                    block.timestamp
+                );
+            }
+
+            // Desposit the rest of the LP for the Tree
+            uint256 lpToTree = sexWftmLpToken.balanceOf(address(this));
+
+            uint256 treeHelperVaultBefore =
+                sexHelperVault.balanceOf(
+                    badgerTree
+                );
+
+            sexHelperVault.depositFor(
+                badgerTree,
+                lpToTree
+            );
+
+            uint256 treeHelperVaultAfter =
+                sexHelperVault.balanceOf(
+                    badgerTree
+                );
+
+            uint256 treeVaultPositionGained =
+                treeHelperVaultAfter.sub(treeHelperVaultBefore);
+
+            emit TreeDistribution(
+                address(sexHelperVault),
+                treeVaultPositionGained,
+                block.number,
+                block.timestamp
+            );
+        }
+
+        // 4. Process SOLID into WANT (SOLId/SOLIDsex LP)
         uint256 solidBalance = solidToken.balanceOf(address(this));
         if (solidBalance > 0) {
             // Swap half of SOLID for SOLIDsex
@@ -229,129 +353,6 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
                 _solidSexIn,
                 _solidIn.mul(sl).div(MAX_BPS),
                 _solidSexIn.mul(sl).div(MAX_BPS),
-                address(this),
-                now
-            );
-        }
-
-        // 3. Deposit SOLID/SOLIDEsex LP into Helper Vault, process fees and emit
-        uint256 lpBalance = solidSolidSexLpToken.balanceOf(address(this));
-        if (lpBalance > 0) {
-            // Take Governance Performance Fees is any
-            if (performanceFeeGovernance > 0) {
-                uint256 lpToGovernance =
-                    lpBalance.mul(performanceFeeGovernance).div(
-                        MAX_FEE
-                    );
-
-                uint256 govHelperVaultBefore =
-                    solidHelperVault.balanceOf(
-                        IController(controller).rewards()
-                    );
-
-                solidHelperVault.depositFor(
-                    IController(controller).rewards(),
-                    lpToGovernance
-                );
-
-                uint256 govHelperVaultAfter =
-                    solidHelperVault.balanceOf(
-                        IController(controller).rewards()
-                    );
-                uint256 govVaultPositionGained =
-                    govHelperVaultAfter.sub(govHelperVaultBefore);
-
-                emit PerformanceFeeGovernance(
-                    IController(controller).rewards(),
-                    address(solidHelperVault),
-                    govVaultPositionGained,
-                    block.number,
-                    block.timestamp
-                );
-            }
-            // Take Strategist Performance Fees is any
-            if (performanceFeeStrategist > 0) {
-                uint256 lpToStrategist =
-                    lpBalance.mul(performanceFeeStrategist).div(
-                        MAX_FEE
-                    );
-
-                uint256 stratHelperVaultBefore =
-                    solidHelperVault.balanceOf(
-                        strategist
-                    );
-
-                solidHelperVault.depositFor(
-                    strategist,
-                    lpToStrategist
-                );
-
-                uint256 stratHelperVaultAfter =
-                    solidHelperVault.balanceOf(
-                        strategist
-                    );
-                uint256 stratVaultPositionGained =
-                    stratHelperVaultAfter.sub(stratHelperVaultBefore);
-
-                emit PerformanceFeeStrategist(
-                    strategist,
-                    address(solidHelperVault),
-                    stratVaultPositionGained,
-                    block.number,
-                    block.timestamp
-                );
-            }
-
-            // Desposit the rest of the LP for the Tree
-            uint256 lpToTree = solidSolidSexLpToken.balanceOf(address(this));
-
-            uint256 treeHelperVaultBefore =
-                solidHelperVault.balanceOf(
-                    badgerTree
-                );
-
-            solidHelperVault.depositFor(
-                badgerTree,
-                lpToTree
-            );
-
-            uint256 treeHelperVaultAfter =
-                solidHelperVault.balanceOf(
-                    badgerTree
-                );
-
-            uint256 treeVaultPositionGained =
-                treeHelperVaultAfter.sub(treeHelperVaultBefore);
-
-            emit TreeDistribution(
-                address(solidHelperVault),
-                treeVaultPositionGained,
-                block.number,
-                block.timestamp
-            );
-        }
-
-        // 4. Process SEX into WANT (wFTM/SEX LP)
-        uint256 sexBalance = sexToken.balanceOf(address(this));
-        if (sexBalance > 0) {
-            // Swap half of SEX for wFTM
-            uint256 _half = sexBalance.mul(5000).div(MAX_BPS);
-            _swapExactTokensForTokens(
-                baseV1Router01,
-                _half,
-                route(sex, wftm, false) // False to use the volatile route
-            );
-
-            // Provide liquidity for SEX/WFTM LP pair
-            uint256 _sexIn = sexToken.balanceOf(address(this));
-            uint256 _wftmIn = wftmToken.balanceOf(address(this));
-            IBaseV1Router01(baseV1Router01).addLiquidity(
-                sex,
-                wftm,
-                _sexIn,
-                _wftmIn,
-                _sexIn.mul(sl).div(MAX_BPS),
-                _wftmIn.mul(sl).div(MAX_BPS),
                 address(this),
                 now
             );

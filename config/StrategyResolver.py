@@ -124,7 +124,9 @@ class StrategyResolver(StrategyCoreResolver):
         entities["baseV1Router01"] = self.manager.strategy.baseV1Router01()
         entities["solidSolidSexLp"] = self.manager.strategy.solidSolidSexLp()
         entities["sexWftmLp"] = self.manager.strategy.sexWftmLp()
-        if self.manager.strategy.name() == "StrategySolidexSexWftmHelper":
+        entities["sexGauge"] = "0x3cBD867cf1D37D9B5c3cEDf28B8a41D71f6807d6"
+        entities["solidGauge"] = "0x03A1fbE02642F61A940093cc76fE5c4A2cbB8c24"
+        if self.manager.strategy.getName() == "StrategySolidexSexWftmHelper":
             entities["solidHelperVault"] = self.manager.strategy.solidHelperVault()
         else:
             entities["sexHelperVault"] = self.manager.strategy.sexHelperVault()
@@ -142,7 +144,7 @@ class StrategyResolver(StrategyCoreResolver):
         wftm = interface.IERC20(strategy.sex())
         solidSolidSexLp = interface.IERC20(strategy.sex())
         sexWftmLp = interface.IERC20(strategy.sex())
-        if strategy.name() == "StrategySolidexSexWftmHelper":
+        if strategy.getName() == "StrategySolidexSexWftmHelper":
             solidHelper = interface.IERC20(strategy.solidHelperVault())
             calls = self.add_entity_balances_for_tokens(calls, "solidHelper", solidHelper, entities)
         else:

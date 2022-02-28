@@ -16,7 +16,7 @@ sett_config = DotMap(
             WANT = "0x62E2819Dd417F3b430B6fa5Fd34a49A377A02ac8",  ## SOLID/SOLIDsex LP
             LP_COMPONENT =  "0x888ef71766ca594ded1f0fa3ae64ed2941740a20",  ## SOLID
             REWARD_TOKEN = "0xD31Fcd1f7Ba190dBc75354046F6024A9b86014d7",  ## SEX
-            WHALE = "0x83b285e802d76055169b1c5e3bf21702b85b89cb"
+            WHALE = "0x39de56518e136d472ef9645e7d6e1f7c6c8ed37b"
         )
     )
 )

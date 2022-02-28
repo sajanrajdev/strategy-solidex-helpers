@@ -214,7 +214,6 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
         if (solidBalance > 0) {
             // Swap half of SOLID for SOLIDsex
             uint256 _half = solidBalance.mul(5000).div(MAX_BPS);
-            // route memory routeSolid = (solid, solidSex, true);
             _swapExactTokensForTokens(
                 baseV1Router01,
                 _half,
@@ -430,10 +429,12 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
         uint256 amountIn,
         route memory routes
     ) internal {
+        route[] memory route = new route[](1);
+        route[0] = routes;
         IBaseV1Router01(router).swapExactTokensForTokens(
             amountIn,
             0,
-            [routes],
+            route,
             address(this),
             now
         );

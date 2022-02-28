@@ -30,7 +30,7 @@ interface IBaseV1Router01 {
     function swapExactTokensForTokens(
         uint256 amountIn,
         uint256 amountOutMin,
-        route[1] calldata routes,
+        route[] calldata routes,
         address to,
         uint256 deadline
     ) external returns (uint256[] memory amounts);

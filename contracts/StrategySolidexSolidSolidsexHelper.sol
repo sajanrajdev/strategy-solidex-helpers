@@ -431,10 +431,12 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
         uint256 amountIn,
         route memory routes
     ) internal {
+        route[] memory route = new route[](1);
+        route[0] = routes;
         IBaseV1Router01(router).swapExactTokensForTokens(
             amountIn,
             0,
-            [routes],
+            route,
             address(this),
             now
         );

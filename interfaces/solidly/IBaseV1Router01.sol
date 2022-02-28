@@ -13,6 +13,7 @@ interface IBaseV1Router01 {
     function addLiquidity(
         address tokenA,
         address tokenB,
+        bool stable,
         uint256 amountADesired,
         uint256 amountBDesired,
         uint256 amountAMin,

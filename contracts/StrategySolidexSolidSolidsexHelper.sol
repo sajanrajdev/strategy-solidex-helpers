@@ -227,6 +227,7 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
             IBaseV1Router01(baseV1Router01).addLiquidity(
                 sex,
                 wftm,
+                false, // Volatile
                 _sexIn,
                 _wftmIn,
                 _sexIn.mul(sl).div(MAX_BPS),
@@ -351,6 +352,7 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
             IBaseV1Router01(baseV1Router01).addLiquidity(
                 solid,
                 solidSex,
+                true, // Stable
                 _solidIn,
                 _solidSexIn,
                 _solidIn.mul(sl).div(MAX_BPS),

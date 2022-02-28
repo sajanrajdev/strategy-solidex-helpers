@@ -14,7 +14,7 @@ interface ILpDepositor {
 
     function userBalances(address user, address pool) external view returns (uint256);
 
-    function getReward(address[1] calldata pools) external;
+    function getReward(address[] calldata pools) external;
 
     function pendingRewards(
         address account,

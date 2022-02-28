@@ -206,7 +206,9 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
         uint256 _before = IERC20Upgradeable(want).balanceOf(address(this));
 
         // 1. Claim rewards
-        lpDepositor.getReward([want]);
+        address[] memory pools = new address[](1);
+        pools[0] = want;
+        lpDepositor.getReward(pools);
 
         // 2. Process SEX into SEX/wFTM LP
         uint256 sexBalance = sexToken.balanceOf(address(this));

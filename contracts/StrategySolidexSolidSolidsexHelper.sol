@@ -366,13 +366,16 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
         /// @notice Keep this in so you get paid!
         _processRewardsFees(earned, want);
 
-        _deposit(earned);
+        uint256 earnedAfterFees =
+            IERC20Upgradeable(want).balanceOf(address(this)).sub(_before);
+
+        _deposit(earnedAfterFees);
 
         /// @dev Harvest event that every strategy MUST have, see BaseStrategy
-        emit Harvest(earned, block.number);
+        emit Harvest(earnedAfterFees, block.number);
 
         /// @dev Harvest must return the amount of want increased
-        return earned;
+        return earnedAfterFees;
     }
 
     /// @dev Rebalance, Compound or Pay off debt here

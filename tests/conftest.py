@@ -3,22 +3,32 @@ from brownie import (
     interface,
     Controller,
     SettV4,
-    MyStrategy,
+    StrategySolidexSexWftmHelper,
+    StrategySolidexSolidSolidsexHelper,
+    Wei,
 )
 from config import (
     BADGER_DEV_MULTISIG,
-    WANT,
-    LP_COMPONENT,
-    REWARD_TOKEN,
-    PROTECTED_TOKENS,
+    BADGER_TREE,
     FEES,
+    SEX_WFTM_LP,
+    SOLID_SOLIDSEX_LP
 )
 from dotmap import DotMap
 import pytest
+from rich.console import Console
+import time
+from helpers.time import days
+
+console = Console()
 
 
-@pytest.fixture
-def deployed():
+@pytest.fixture(autouse=True)
+def isolation(fn_isolation):
+    pass
+
+
+def deploy(sett_config):
     """
     Deploys, vault, controller and strats and wires them up for you to test
     """
@@ -33,9 +43,12 @@ def deployed():
     controller = Controller.deploy({"from": deployer})
     controller.initialize(BADGER_DEV_MULTISIG, strategist, keeper, BADGER_DEV_MULTISIG)
 
-    sett = SettV4.deploy({"from": deployer})
-    sett.initialize(
-        WANT,
+    # Deploy both helper vaults
+    sexHelperSett = SettV4.deploy({"from": deployer})
+    solidHelperSett = SettV4.deploy({"from": deployer})
+
+    sexSettArgs = [
+        SEX_WFTM_LP,
         controller,
         BADGER_DEV_MULTISIG,
         keeper,
@@ -43,124 +56,103 @@ def deployed():
         False,
         "prefix",
         "PREFIX",
-    )
+    ]
 
-    sett.unpause({"from": governance})
-    controller.setVault(WANT, sett)
+    solidSettArgs = [
+        SOLID_SOLIDSEX_LP,
+        controller,
+        BADGER_DEV_MULTISIG,
+        keeper,
+        guardian,
+        False,
+        "prefix",
+        "PREFIX",
+    ]
 
-    ## TODO: Add guest list once we find compatible, tested, contract
-    # guestList = VipCappedGuestListWrapperUpgradeable.deploy({"from": deployer})
-    # guestList.initialize(sett, {"from": deployer})
-    # guestList.setGuests([deployer], [True])
-    # guestList.setUserDepositCap(100000000)
-    # sett.setGuestList(guestList, {"from": governance})
+    # Initialize both vaults
+    sexHelperSett.initialize(*sexSettArgs)
+    solidHelperSett.initialize(*solidSettArgs)
 
-    ## Start up Strategy
-    strategy = MyStrategy.deploy({"from": deployer})
-    strategy.initialize(
+    sexHelperSett.unpause({"from": governance})
+    solidHelperSett.unpause({"from": governance})
+
+    # Add both vaults to controller
+    controller.setVault(sexHelperSett.token(), sexHelperSett)
+    controller.setVault(solidHelperSett.token(), solidHelperSett)
+
+    # Deploy both Helper strats
+    sexHelperStrategy = StrategySolidexSexWftmHelper.deploy({"from": deployer})
+    solidHelperStrategy = StrategySolidexSolidSolidsexHelper.deploy({"from": deployer})
+
+    sexStratArgs = [
         BADGER_DEV_MULTISIG,
         strategist,
         controller,
         keeper,
         guardian,
-        PROTECTED_TOKENS,
+        [
+            SEX_WFTM_LP,
+            BADGER_TREE,
+            solidHelperStrategy,
+        ],
         FEES,
-    )
+    ]
 
-    ## Tool that verifies bytecode (run independently) <- Webapp for anyone to verify
+    solidStratArgs = [
+        BADGER_DEV_MULTISIG,
+        strategist,
+        controller,
+        keeper,
+        guardian,
+        [
+            SOLID_SOLIDSEX_LP,
+            BADGER_TREE,
+            sexHelperStrategy,
+        ],
+        FEES,
+    ]
+
+    # Initialize both helper strats
+    sexHelperStrategy.initialize(*sexStratArgs)
+    solidHelperStrategy.initialize(*solidStratArgs)
+
+
+    ## Start up Strategy
+    if sett_config.WANT == "0xFCEC86aF8774d69e2e4412B8De3f4aBf1f671ecC":
+        strategy = sexHelperStrategy
+        sett = sexHelperSett
+
+        ## Grant contract access on other helper vault
+        solidHelperSett.approveContractAccess(strategy, {"from": governance})
+
+    elif sett_config.WANT == "0x62E2819Dd417F3b430B6fa5Fd34a49A377A02ac8":
+        strategy = solidHelperStrategy
+        sett = solidHelperSett
+
+        ## Grant contract access on other helper vault
+        sexHelperSett.approveContractAccess(strategy, {"from": governance})
+
+    # Get whale
+    whale = accounts.at(sett_config.WHALE, force=True)
 
     ## Set up tokens
-    want = interface.IERC20(WANT)
-    lpComponent = interface.IERC20(LP_COMPONENT)
-    rewardToken = interface.IERC20(REWARD_TOKEN)
+    want = interface.IERC20(strategy.want())
 
     ## Wire up Controller to Strart
-    ## In testing will pass, but on live it will fail
-    controller.approveStrategy(WANT, strategy, {"from": governance})
-    controller.setStrategy(WANT, strategy, {"from": deployer})
+    ## Only doing for strat under test
+    controller.approveStrategy(want, strategy, {"from": governance})
+    controller.setStrategy(want, strategy, {"from": deployer})
 
-    ## Uniswap some tokens here
-    router = interface.IUniswapRouterV2("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D")
-    router.swapExactETHForTokens(
-        0,  ## Mint out
-        ["0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", WANT],
-        deployer,
-        9999999999999999,
-        {"from": deployer, "value": 5000000000000000000},
-    )
+    # Transfer want from whale
+    want.transfer(deployer.address, want.balanceOf(whale.address), {"from": whale})
+
+    assert want.balanceOf(deployer.address) > 0
 
     return DotMap(
+        governance=governance,
         deployer=deployer,
         controller=controller,
-        vault=sett,
         sett=sett,
         strategy=strategy,
-        # guestList=guestList,
         want=want,
-        lpComponent=lpComponent,
-        rewardToken=rewardToken,
     )
-
-
-## Contracts ##
-
-
-@pytest.fixture
-def vault(deployed):
-    return deployed.vault
-
-
-@pytest.fixture
-def sett(deployed):
-    return deployed.sett
-
-
-@pytest.fixture
-def controller(deployed):
-    return deployed.controller
-
-
-@pytest.fixture
-def strategy(deployed):
-    return deployed.strategy
-
-
-## Tokens ##
-
-
-@pytest.fixture
-def want(deployed):
-    return deployed.want
-
-
-@pytest.fixture
-def tokens():
-    return [WANT, LP_COMPONENT, REWARD_TOKEN]
-
-
-## Accounts ##
-
-
-@pytest.fixture
-def deployer(deployed):
-    return deployed.deployer
-
-
-@pytest.fixture
-def strategist(strategy):
-    return accounts.at(strategy.strategist(), force=True)
-
-
-@pytest.fixture
-def settKeeper(vault):
-    return accounts.at(vault.keeper(), force=True)
-
-
-@pytest.fixture
-def strategyKeeper(strategy):
-    return accounts.at(strategy.keeper(), force=True)
-
-## Forces reset before each test
-@pytest.fixture(autouse=True)
-def isolation(fn_isolation):
-    pass

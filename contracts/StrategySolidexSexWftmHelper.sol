@@ -114,6 +114,8 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
         IERC20Upgradeable(want).safeApprove(address(lpDepositor), type(uint256).max);
         IERC20Upgradeable(solid).safeApprove(baseV1Router01, type(uint256).max);
         IERC20Upgradeable(solidSex).safeApprove(baseV1Router01, type(uint256).max);
+        IERC20Upgradeable(sex).safeApprove(baseV1Router01, type(uint256).max);
+        IERC20Upgradeable(wftm).safeApprove(baseV1Router01, type(uint256).max);
         IERC20Upgradeable(solidSolidSexLp).safeApprove(address(solidHelperVault), type(uint256).max);
     }
 
@@ -239,11 +241,11 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
         // 3. Deposit SOLID/SOLIDEsex LP into Helper Vault, process fees and emit
         uint256 lpBalance = solidSolidSexLpToken.balanceOf(address(this));
         if (lpBalance > 0) {
-            // Take Governance Performance Fees is any
+            // Take Governance Performance Fees if any
             if (performanceFeeGovernance > 0) {
                 uint256 lpToGovernance =
                     lpBalance.mul(performanceFeeGovernance).div(
-                        MAX_FEE
+                        MAX_BPS
                     );
 
                 uint256 govHelperVaultBefore =
@@ -271,11 +273,11 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
                     block.timestamp
                 );
             }
-            // Take Strategist Performance Fees is any
+            // Take Strategist Performance Fees if any
             if (performanceFeeStrategist > 0) {
                 uint256 lpToStrategist =
                     lpBalance.mul(performanceFeeStrategist).div(
-                        MAX_FEE
+                        MAX_BPS
                     );
 
                 uint256 stratHelperVaultBefore =

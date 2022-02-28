@@ -93,7 +93,7 @@ def deploy(sett_config):
         [
             SEX_WFTM_LP,
             BADGER_TREE,
-            solidHelperStrategy,
+            solidHelperSett.address,
         ],
         FEES,
     ]
@@ -107,7 +107,7 @@ def deploy(sett_config):
         [
             SOLID_SOLIDSEX_LP,
             BADGER_TREE,
-            sexHelperStrategy,
+            sexHelperSett.address,
         ],
         FEES,
     ]
@@ -116,6 +116,12 @@ def deploy(sett_config):
     sexHelperStrategy.initialize(*sexStratArgs)
     solidHelperStrategy.initialize(*solidStratArgs)
 
+    ## Wire up Controller to Strarts
+    controller.approveStrategy(sexHelperStrategy.want(), sexHelperStrategy, {"from": governance})
+    controller.setStrategy(sexHelperStrategy.want(), sexHelperStrategy, {"from": deployer})
+
+    controller.approveStrategy(solidHelperStrategy.want(), solidHelperStrategy, {"from": governance})
+    controller.setStrategy(solidHelperStrategy.want(), solidHelperStrategy, {"from": deployer})
 
     ## Start up Strategy
     if sett_config.WANT == "0xFCEC86aF8774d69e2e4412B8De3f4aBf1f671ecC":
@@ -137,11 +143,6 @@ def deploy(sett_config):
 
     ## Set up tokens
     want = interface.IERC20(strategy.want())
-
-    ## Wire up Controller to Strart
-    ## Only doing for strat under test
-    controller.approveStrategy(want, strategy, {"from": governance})
-    controller.setStrategy(want, strategy, {"from": deployer})
 
     # Transfer want from whale
     want.transfer(deployer.address, want.balanceOf(whale.address), {"from": whale})

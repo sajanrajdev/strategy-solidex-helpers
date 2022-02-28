@@ -204,8 +204,6 @@ contract StrategySolidexSexWftmHelper is BaseStrategy {
 
         uint256 _before = IERC20Upgradeable(want).balanceOf(address(this));
 
-        IERC20Upgradeable(want).safeApprove(address(lpDepositor), type(uint256).max);
-
         // 1. Claim rewards
         lpDepositor.getReward([want]);
 

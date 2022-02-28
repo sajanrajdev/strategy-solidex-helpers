@@ -1,15 +1,33 @@
 import brownie
-from brownie import *
+from brownie import MockToken, accounts, chain, Wei, interface
 from helpers.constants import MaxUint256
 from helpers.SnapshotManager import SnapshotManager
 from helpers.time import days
+from config import sett_config
+import pytest
+from conftest import deploy
+import time
+from rich.console import Console
+
+console = Console()
 
 
-def test_deposit_withdraw_single_user_flow(
-    deployer, vault, controller, strategy, want, settKeeper
-):
+@pytest.mark.parametrize(
+    "sett_id",
+    sett_config.helpers,
+)
+def test_deposit_withdraw_single_user_flow(sett_id):
     # Setup
-    snap = SnapshotManager(vault, strategy, controller, "StrategySnapshot")
+    deployed = deploy(sett_config.helpers[sett_id])
+
+    deployer = deployed.deployer
+    sett = deployed.sett
+    want = deployed.want
+    strategy = deployed.strategy
+    controller = deployed.controller
+    settKeeper = accounts.at(sett.keeper(), force=True)
+
+    snap = SnapshotManager(sett, strategy, controller, "StrategySnapshot")
     randomUser = accounts[6]
     # End Setup
 
@@ -19,15 +37,15 @@ def test_deposit_withdraw_single_user_flow(
     depositAmount = int(want.balanceOf(deployer) * 0.8)
     assert depositAmount > 0
 
-    want.approve(vault.address, MaxUint256, {"from": deployer})
+    want.approve(sett.address, MaxUint256, {"from": deployer})
 
     snap.settDeposit(depositAmount, {"from": deployer})
 
-    shares = vault.balanceOf(deployer)
+    shares = sett.balanceOf(deployer)
 
     # Earn
     with brownie.reverts("onlyAuthorizedActors"):
-        vault.earn({"from": randomUser})
+        sett.earn({"from": randomUser})
 
     snap.settEarn({"from": settKeeper})
 
@@ -42,11 +60,23 @@ def test_deposit_withdraw_single_user_flow(
     snap.settWithdraw(shares // 2 - 1, {"from": deployer})
 
 
-def test_single_user_harvest_flow(
-    deployer, vault, sett, controller, strategy, want, settKeeper, strategyKeeper
-):
+@pytest.mark.parametrize(
+    "sett_id",
+    sett_config.helpers,
+)
+def test_single_user_harvest_flow(sett_id):
     # Setup
-    snap = SnapshotManager(vault, strategy, controller, "StrategySnapshot")
+    deployed = deploy(sett_config.helpers[sett_id])
+
+    deployer = deployed.deployer
+    sett = deployed.sett
+    want = deployed.want
+    strategy = deployed.strategy
+    controller = deployed.controller
+    settKeeper = accounts.at(sett.keeper(), force=True)
+    strategyKeeper = accounts.at(strategy.keeper(), force=True)
+
+    snap = SnapshotManager(sett, strategy, controller, "StrategySnapshot")
     randomUser = accounts[6]
     tendable = strategy.isTendable()
     startingBalance = want.balanceOf(deployer)
@@ -58,7 +88,7 @@ def test_single_user_harvest_flow(
     # Deposit
     want.approve(sett, MaxUint256, {"from": deployer})
     snap.settDeposit(depositAmount, {"from": deployer})
-    shares = vault.balanceOf(deployer)
+    shares = sett.balanceOf(deployer)
 
     assert want.balanceOf(sett) > 0
     print("want.balanceOf(sett)", want.balanceOf(sett))
@@ -72,7 +102,7 @@ def test_single_user_harvest_flow(
 
         snap.settTend({"from": strategyKeeper})
 
-    chain.sleep(days(0.5))
+    chain.sleep(5000)  ## Mine a ton so we get interest
     chain.mine()
 
     if tendable:
@@ -101,12 +131,23 @@ def test_single_user_harvest_flow(
     snap.settWithdraw(shares // 2 - 1, {"from": deployer})
 
 
-def test_migrate_single_user(
-    deployer, vault, sett, controller, strategy, want, strategist
-):
+@pytest.mark.parametrize(
+    "sett_id",
+    sett_config.helpers,
+)
+def test_migrate_single_user(sett_id):
     # Setup
+    deployed = deploy(sett_config.helpers[sett_id])
+
+    deployer = deployed.deployer
+    sett = deployed.sett
+    want = deployed.want
+    strategy = deployed.strategy
+    controller = deployed.controller
+
     randomUser = accounts[6]
-    snap = SnapshotManager(vault, strategy, controller, "StrategySnapshot")
+    strategist = accounts.at(strategy.strategist(), force=True)
+    snap = SnapshotManager(sett, strategy, controller, "StrategySnapshot")
 
     startingBalance = want.balanceOf(deployer)
     depositAmount = startingBalance // 2
@@ -193,13 +234,25 @@ def test_migrate_single_user(
     assert after["stratWant"] == 0
 
 
-def test_withdraw_other(deployer, sett, controller, strategy, want):
+@pytest.mark.parametrize(
+    "sett_id",
+    sett_config.helpers,
+)
+def test_withdraw_other(sett_id):
     """
     - Controller should be able to withdraw other tokens
     - Controller should not be able to withdraw core tokens
     - Non-controller shouldn't be able to do either
     """
     # Setup
+    deployed = deploy(sett_config.helpers[sett_id])
+
+    deployer = deployed.deployer
+    sett = deployed.sett
+    want = deployed.want
+    strategy = deployed.strategy
+    controller = deployed.controller
+
     randomUser = accounts[6]
     startingBalance = want.balanceOf(deployer)
     depositAmount = startingBalance // 2
@@ -249,12 +302,22 @@ def test_withdraw_other(deployer, sett, controller, strategy, want):
     assert mockToken.balanceOf(controller) == mockAmount
 
 
-def test_single_user_harvest_flow_remove_fees(
-    deployer, vault, sett, controller, strategy, want
-):
+@pytest.mark.parametrize(
+    "sett_id",
+    sett_config.helpers,
+)
+def test_single_user_harvest_flow_remove_fees(sett_id):
     # Setup
+    deployed = deploy(sett_config.helpers[sett_id])
+
+    deployer = deployed.deployer
+    sett = deployed.sett
+    want = deployed.want
+    strategy = deployed.strategy
+    controller = deployed.controller
+
     randomUser = accounts[6]
-    snap = SnapshotManager(vault, strategy, controller, "StrategySnapshot")
+    snap = SnapshotManager(sett, strategy, controller, "StrategySnapshot")
     startingBalance = want.balanceOf(deployer)
     tendable = strategy.isTendable()
     startingBalance = want.balanceOf(deployer)
@@ -269,7 +332,7 @@ def test_single_user_harvest_flow_remove_fees(
     # Earn
     snap.settEarn({"from": deployer})
 
-    chain.sleep(days(0.5))
+    chain.sleep(days(1))
     chain.mine()
 
     if tendable:
@@ -282,9 +345,6 @@ def test_single_user_harvest_flow_remove_fees(
         strategy.harvest({"from": randomUser})
 
     snap.settHarvest({"from": deployer})
-
-    ## NOTE: Some strats do not do this, change accordingly
-    assert want.balanceOf(controller.rewards()) > 0
 
     chain.sleep(days(1))
     chain.mine()

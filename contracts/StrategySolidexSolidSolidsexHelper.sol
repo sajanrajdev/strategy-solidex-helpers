@@ -341,7 +341,6 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
         if (solidBalance > 0) {
             // Swap half of SOLID for SOLIDsex
             uint256 _half = solidBalance.mul(5000).div(MAX_BPS);
-            // route memory routeSolid = (solid, solidSex, true);
             _swapExactTokensForTokens(
                 baseV1Router01,
                 _half,

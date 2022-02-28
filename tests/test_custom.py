@@ -215,4 +215,4 @@ def test_fee_configs(sett_id):
       assert harvest.events["PerformanceFeeStrategist"][0]["token"] == strategy.solidHelperVault()
     else:
       assert harvest.events["PerformanceFeeStrategist"][0]["token"] == strategy.sexHelperVault()
-    assert harvest.events["PerformanceFeeStrategist"][1]["token"] == strategy.bveCVX()
+    assert harvest.events["PerformanceFeeStrategist"][1]["token"] == strategy.want()

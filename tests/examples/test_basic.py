@@ -1,26 +1,33 @@
 from config import (
     BADGER_DEV_MULTISIG,
-    WANT,
-    LP_COMPONENT,
-    REWARD_TOKEN,
     DEFAULT_GOV_PERFORMANCE_FEE,
     DEFAULT_PERFORMANCE_FEE,
     DEFAULT_WITHDRAWAL_FEE,
 )
+from config import sett_config
+import pytest
+from conftest import deploy
 
 
-def test_deploy_settings(deployed):
+@pytest.mark.parametrize(
+    "sett_id",
+    sett_config.helpers,
+)
+def test_deploy_settings(sett_id):
     """
     Verifies that you set up the Strategy properly
     """
+    config = sett_config.helpers[sett_id]
+    deployed = deploy(config)
+    
     strategy = deployed.strategy
 
     protected_tokens = strategy.getProtectedTokens()
 
     ## NOTE: Change based on how you set your contract
-    assert protected_tokens[0] == WANT
-    assert protected_tokens[1] == LP_COMPONENT
-    assert protected_tokens[2] == REWARD_TOKEN
+    assert protected_tokens[0] == strategy.want()
+    assert protected_tokens[1] == strategy.sex()
+    assert protected_tokens[2] == strategy.solid()
 
     assert strategy.governance() == BADGER_DEV_MULTISIG
 

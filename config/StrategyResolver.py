@@ -157,3 +157,5 @@ class StrategyResolver(StrategyCoreResolver):
         calls = self.add_entity_balances_for_tokens(calls, "wftm", wftm, entities)
         calls = self.add_entity_balances_for_tokens(calls, "solidSolidSexLp", solidSolidSexLp, entities)
         calls = self.add_entity_balances_for_tokens(calls, "sexWftmLp", sexWftmLp, entities)
+
+        return calls

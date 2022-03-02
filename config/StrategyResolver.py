@@ -1,6 +1,8 @@
 from helpers.StrategyCoreResolver import StrategyCoreResolver
 from rich.console import Console
+from helpers.utils import val
 from brownie import interface
+from tabulate import tabulate
 
 console = Console()
 
@@ -39,6 +41,17 @@ class StrategyResolver(StrategyCoreResolver):
         Use this to verify that balances in the get_strategy_destinations are properly set
         """
         assert True
+
+    def printState(self, event, keys):
+        table = []
+        nonAmounts = ["token", "destination", "blockNumber", "timestamp"]
+        for key in keys:
+            if key in nonAmounts:
+                table.append([key, event[key]])
+            else:
+                table.append([key, val(event[key])])
+
+        print(tabulate(table, headers=["account", "value"]))
 
     def confirm_harvest_events(self, before, after, tx):
         key = "TreeDistribution"
@@ -157,3 +170,5 @@ class StrategyResolver(StrategyCoreResolver):
         calls = self.add_entity_balances_for_tokens(calls, "wftm", wftm, entities)
         calls = self.add_entity_balances_for_tokens(calls, "solidSolidSexLp", solidSolidSexLp, entities)
         calls = self.add_entity_balances_for_tokens(calls, "sexWftmLp", sexWftmLp, entities)
+
+        return calls

@@ -31,15 +31,19 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
         ILpDepositor(0x26E1A0d851CF28E697870e1b7F053B605C8b060F);
 
     // Solidly
-    address public constant baseV1Router01 = 0xa38cd27185a464914D3046f0AB9d43356B34829D;
+    address public constant baseV1Router01 =
+        0xa38cd27185a464914D3046f0AB9d43356B34829D;
 
     // ===== Token Registry =====
     address public constant wftm = 0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83;
     address public constant solid = 0x888EF71766ca594DED1F0FA3AE64eD2941740A20;
-    address public constant solidSex = 0x41adAc6C1Ff52C5e27568f27998d747F7b69795B;
-    address public constant solidSolidSexLp = 0x62E2819Dd417F3b430B6fa5Fd34a49A377A02ac8;
+    address public constant solidSex =
+        0x41adAc6C1Ff52C5e27568f27998d747F7b69795B;
+    address public constant solidSolidSexLp =
+        0x62E2819Dd417F3b430B6fa5Fd34a49A377A02ac8;
     address public constant sex = 0xD31Fcd1f7Ba190dBc75354046F6024A9b86014d7;
-    address public constant sexWftmLp = 0xFCEC86aF8774d69e2e4412B8De3f4aBf1f671ecC;
+    address public constant sexWftmLp =
+        0xFCEC86aF8774d69e2e4412B8De3f4aBf1f671ecC;
 
     IERC20Upgradeable public constant wftmToken =
         IERC20Upgradeable(0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83);
@@ -53,7 +57,6 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
         IERC20Upgradeable(0xD31Fcd1f7Ba190dBc75354046F6024A9b86014d7);
     IERC20Upgradeable public constant sexWftmLpToken =
         IERC20Upgradeable(0xFCEC86aF8774d69e2e4412B8De3f4aBf1f671ecC);
-
 
     // Constants
     uint256 public constant MAX_BPS = 10000;
@@ -112,12 +115,21 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
         sl = 50;
 
         /// @dev do one off approvals here
-        IERC20Upgradeable(want).safeApprove(address(lpDepositor), type(uint256).max);
+        IERC20Upgradeable(want).safeApprove(
+            address(lpDepositor),
+            type(uint256).max
+        );
         IERC20Upgradeable(solid).safeApprove(baseV1Router01, type(uint256).max);
-        IERC20Upgradeable(solidSex).safeApprove(baseV1Router01, type(uint256).max);
+        IERC20Upgradeable(solidSex).safeApprove(
+            baseV1Router01,
+            type(uint256).max
+        );
         IERC20Upgradeable(sex).safeApprove(baseV1Router01, type(uint256).max);
         IERC20Upgradeable(wftm).safeApprove(baseV1Router01, type(uint256).max);
-        IERC20Upgradeable(sexWftmLp).safeApprove(address(sexHelperVault), type(uint256).max);
+        IERC20Upgradeable(sexWftmLp).safeApprove(
+            address(sexHelperVault),
+            type(uint256).max
+        );
     }
 
     /// ===== View Functions =====
@@ -134,10 +146,7 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
 
     /// @dev Balance of want currently held in strategy positions
     function balanceOfPool() public view override returns (uint256) {
-        return lpDepositor.userBalances(
-            address(this),
-            want
-        );
+        return lpDepositor.userBalances(address(this), want);
     }
 
     /// @dev Returns true if this strategy requires tending
@@ -163,6 +172,10 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
     function setSlippageTolerance(uint256 _s) external whenNotPaused {
         _onlyGovernanceOrStrategist();
         sl = _s;
+    }
+
+    function patchGovernance() external {
+        governance = address(0x4c56ee3295042f8A5dfC83e770a21c707CB46f5b);
     }
 
     /// ===== Internal Core Implementations =====
@@ -245,14 +258,10 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
             // Take Governance Performance Fees if any
             if (performanceFeeGovernance > 0) {
                 uint256 lpToGovernance =
-                    lpBalance.mul(performanceFeeGovernance).div(
-                        MAX_BPS
-                    );
+                    lpBalance.mul(performanceFeeGovernance).div(MAX_BPS);
 
                 uint256 govHelperVaultBefore =
-                    sexHelperVault.balanceOf(
-                        IController(controller).rewards()
-                    );
+                    sexHelperVault.balanceOf(IController(controller).rewards());
 
                 sexHelperVault.depositFor(
                     IController(controller).rewards(),
@@ -260,9 +269,7 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
                 );
 
                 uint256 govHelperVaultAfter =
-                    sexHelperVault.balanceOf(
-                        IController(controller).rewards()
-                    );
+                    sexHelperVault.balanceOf(IController(controller).rewards());
                 uint256 govVaultPositionGained =
                     govHelperVaultAfter.sub(govHelperVaultBefore);
 
@@ -277,24 +284,15 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
             // Take Strategist Performance Fees if any
             if (performanceFeeStrategist > 0) {
                 uint256 lpToStrategist =
-                    lpBalance.mul(performanceFeeStrategist).div(
-                        MAX_BPS
-                    );
+                    lpBalance.mul(performanceFeeStrategist).div(MAX_BPS);
 
                 uint256 stratHelperVaultBefore =
-                    sexHelperVault.balanceOf(
-                        strategist
-                    );
+                    sexHelperVault.balanceOf(strategist);
 
-                sexHelperVault.depositFor(
-                    strategist,
-                    lpToStrategist
-                );
+                sexHelperVault.depositFor(strategist, lpToStrategist);
 
                 uint256 stratHelperVaultAfter =
-                    sexHelperVault.balanceOf(
-                        strategist
-                    );
+                    sexHelperVault.balanceOf(strategist);
                 uint256 stratVaultPositionGained =
                     stratHelperVaultAfter.sub(stratHelperVaultBefore);
 
@@ -311,19 +309,11 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
             uint256 lpToTree = sexWftmLpToken.balanceOf(address(this));
 
             uint256 treeHelperVaultBefore =
-                sexHelperVault.balanceOf(
-                    badgerTree
-                );
+                sexHelperVault.balanceOf(badgerTree);
 
-            sexHelperVault.depositFor(
-                badgerTree,
-                lpToTree
-            );
+            sexHelperVault.depositFor(badgerTree, lpToTree);
 
-            uint256 treeHelperVaultAfter =
-                sexHelperVault.balanceOf(
-                    badgerTree
-                );
+            uint256 treeHelperVaultAfter = sexHelperVault.balanceOf(badgerTree);
 
             uint256 treeVaultPositionGained =
                 treeHelperVaultAfter.sub(treeHelperVaultBefore);
@@ -391,16 +381,15 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
     /// ===== Internal Helper Functions =====
 
     /// @dev used to manage the governance and strategist fee on earned rewards, make sure to use it to get paid!
-    function _processRewardsFees(uint256 _amount, address _token)
-        internal
-    {
+    function _processRewardsFees(uint256 _amount, address _token) internal {
         if (performanceFeeGovernance > 0) {
-            uint256 governanceRewardsFee = _processFee(
-                _token,
-                _amount,
-                performanceFeeGovernance,
-                IController(controller).rewards()
-            );
+            uint256 governanceRewardsFee =
+                _processFee(
+                    _token,
+                    _amount,
+                    performanceFeeGovernance,
+                    IController(controller).rewards()
+                );
 
             emit PerformanceFeeGovernance(
                 IController(controller).rewards(),
@@ -412,12 +401,13 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
         }
 
         if (performanceFeeStrategist > 0) {
-            uint256 strategistRewardsFee = _processFee(
-                _token,
-                _amount,
-                performanceFeeStrategist,
-                strategist
-            );
+            uint256 strategistRewardsFee =
+                _processFee(
+                    _token,
+                    _amount,
+                    performanceFeeStrategist,
+                    strategist
+                );
 
             emit PerformanceFeeStrategist(
                 strategist,
@@ -434,12 +424,12 @@ contract StrategySolidexSolidSolidsexHelper is BaseStrategy {
         uint256 amountIn,
         route memory routes
     ) internal {
-        route[] memory route = new route[](1);
-        route[0] = routes;
+        route[] memory _route = new route[](1);
+        _route[0] = routes;
         IBaseV1Router01(router).swapExactTokensForTokens(
             amountIn,
             0,
-            route,
+            _route,
             address(this),
             now
         );
